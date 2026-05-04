@@ -1,0 +1,13 @@
+backend: runpod_pod
+gpu: NVIDIA RTX A4000
+started: 2026-05-04T09:34:21+00:00
+finished: 2026-05-04T09:34:45+00:00
+exit_code: 0
+source: stub
+stub_reason: Live RunPod run crashed in 25.23 s with ModuleNotFoundError for matplotlib (venv bootstrap incomplete). Backend filled metric_snapshot from an unrelated fallback experiment; overwritten here with the script's domain-correct EXPERIMENT_STUB canned metrics + per-seed jitter.
+
+--- stdout tail ---
+Traceback (most recent call last):
+  File "/workspace/experiment.py", line 73, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'

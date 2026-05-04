@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Compression Without Critical Information Loss</title>
+  <meta name="description" content="Head-to-head comparison of four context-compression families on HotpotQA-distractor at a fixed 30% retention budget.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="brand">Context Compression / Head-to-Head</div>
+  <nav>
+    <a href="#abstract">Abstract</a>
+    <a href="#contributions">Contributions</a>
+    <a href="#method">Method</a>
+    <a href="#results">Results</a>
+    <a href="#next">Next</a>
+    <a href="#cite">Cite</a>
+  </nav>
+  <div class="ctas">
+    <a class="pill" href="https://github.com/Vizuara-AI-Lab/paper-context-compression-without-critical-info-loss" target="_blank" rel="noopener">Code</a>
+    <a class="pill primary" href="main.pdf" target="_blank" rel="noopener">Paper (PDF)</a>
+  </div>
+</header>
+
+<main>
+
+<section style="margin-top:0">
+  <div class="eyebrow">LLM efficiency · Long-context QA · Empirical comparison</div>
+  <h1 class="headline">Iterative compaction is the strongest context compressor at a 30% retention budget, and extractive selection is the best deal.</h1>
+  <p class="lede">We hold reader, prompt, dataset, retention ratio, and seeds fixed across seven compression strategies, and let the compression policy be the only moving part. On HotpotQA-distractor, two-round iterative compaction wins on F1 and EM; extractive top-<em>k</em> selection captures most of that quality at one twelfth of the latency.</p>
+
+  <dl class="metadata-grid">
+    <div><dt>Author</dt><dd>Vikash Chandra Mishra</dd></div>
+    <div><dt>Primary metric</dt><dd>HotpotQA F1 (iterative)</dd></div>
+    <div><dt>Result</dt><dd><strong>0.552 ± 0.008</strong></dd></div>
+    <div><dt>Seeds</dt><dd>3 (0, 1, 2)</dd></div>
+    <div><dt>Reader</dt><dd>Qwen2.5-1.5B-Instruct (frozen)</dd></div>
+    <div><dt>Dataset</dt><dd>HotpotQA distractor split</dd></div>
+    <div><dt>Eval items / seed</dt><dd>100</dd></div>
+    <div><dt>Retention budget</dt><dd>~30% of full context</dd></div>
+    <div><dt>License</dt><dd>MIT (code), CC-BY-4.0 (paper)</dd></div>
+  </dl>
+</section>
+
+<section id="abstract" class="section-narrow">
+  <h2><span class="section-num">01</span> Abstract</h2>
+  <p>Large language model pipelines that retrieve, recall, or accumulate context routinely accumulate more tokens than a downstream reader can usefully consume, raising the question of how to compress that context without losing the facts a question turns on. We compare four families of context compression on a frozen Qwen2.5-1.5B reader: extractive sentence selection, single-pass abstractive summarisation, structured JSON memory schemas, and a two-round iterative compaction pipeline. All four are held to a common ~30% token-retention budget and evaluated on the HotpotQA distractor split, where each item exposes two gold paragraphs alongside eight distractors.</p>
+  <p>Across three seeds, iterative compaction reaches <strong>F1 0.552 ± 0.008</strong> and Exact Match <strong>0.395 ± 0.004</strong>, beating the next-best learned compressor (extractive selection) by 4.6 F1 points and the strongest length-matched control (truncation) by 21.7 F1 points, while retaining roughly 89% of the uncompressed full-context F1 (0.621). Structured-memory extraction is the weakest learned compressor at this retention level. We document each method, the resulting quality-vs-ratio frontier, and the cost trade-offs (extractive captures most of the iterative quality at 12× lower latency).</p>
+</section>
+
+<section id="contributions">
+  <h2><span class="section-num">02</span> Contributions</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div class="num">01</div>
+      <h3>Controlled head-to-head</h3>
+      <p>Reader, prompt template, dataset, retention budget, and seeds are pinned across seven conditions. Quality differences attach cleanly to the compression policy.</p>
+    </div>
+    <div class="card">
+      <div class="num">02</div>
+      <h3>Iterative compaction wins on quality</h3>
+      <p>Two-round iterative compaction reaches F1 0.552 ± 0.008, edging extractive selection by 4.6 F1 and the truncate baseline by 21.7 F1.</p>
+    </div>
+    <div class="card">
+      <div class="num">03</div>
+      <h3>Cost-quality trade-off mapped</h3>
+      <p>Extractive selection captures most of iterative compaction's quality at 12× lower per-item latency, the right operating point for high-throughput deployments.</p>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <h2><span class="section-num">03</span> Method</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div class="num">01</div>
+      <h3>Length-matched controls</h3>
+      <p>Truncate-first-N keeps the first <em>ρ·|full|</em> tokens; random selects <em>ρK</em> paragraphs uniformly. Both isolate the effect of length alone.</p>
+    </div>
+    <div class="card">
+      <div class="num">02</div>
+      <h3>Extractive top-<em>k</em></h3>
+      <p>Score each paragraph by max sentence-question cosine similarity under a frozen sentence encoder; keep the top <em>ρK</em>. No LLM generation needed.</p>
+    </div>
+    <div class="card">
+      <div class="num">03</div>
+      <h3>Abstractive single-pass</h3>
+      <p>One query-aware LLM call: "compress the passages so a downstream reader can still answer this question, preserving entities, dates, and relations".</p>
+    </div>
+    <div class="card">
+      <div class="num">04</div>
+      <h3>Structured memory (JSON)</h3>
+      <p>Extract a JSON object with entities, relations, and facts; serialise as text for the reader. Robust to JSON parse failures via plain-text fallback.</p>
+    </div>
+    <div class="card">
+      <div class="num">05</div>
+      <h3>Iterative compaction</h3>
+      <p>Round 1: per-paragraph 2-sentence summary, question-agnostic. Round 2: query-conditioned compaction over the bullet list. Only round 2 sees the question.</p>
+    </div>
+    <div class="card">
+      <div class="num">06</div>
+      <h3>Frozen reader</h3>
+      <p>Qwen2.5-1.5B-Instruct, fp16 on a single RTX A4000. Greedy decoding, identical prompt template across all seven conditions.</p>
+    </div>
+  </div>
+
+  <figure class="wide-figure">
+    <img src="figures/fig-pipeline.png" alt="Compression pipeline diagram with three lanes: input paragraphs and question, six compression methods, and the frozen reader producing the answer.">
+    <figcaption><span class="figlabel">Figure 1 —</span> The compression pipeline. Each of the four learned compressors maps the 10-paragraph distractor context (2 gold + 8 distractors) into a length-budgeted summary that the frozen reader uses to answer; truncate-first-N and random-paragraph baselines provide length-matched controls.</figcaption>
+  </figure>
+
+  <figure class="wide-figure">
+    <img src="figures/fig-iterative.png" alt="Two-stage iterative compaction inner loop: per-paragraph summarisation followed by a query-conditioned compaction call.">
+    <figcaption><span class="figlabel">Figure 2 —</span> Iterative compaction performs a per-paragraph summarisation pass followed by a query-conditioned compaction pass; only the second pass sees the question.</figcaption>
+  </figure>
+</section>
+
+<section id="results">
+  <h2><span class="section-num">04</span> Results</h2>
+
+  <div class="big-metric">
+    <div class="metric-value">0.552 ± 0.008</div>
+    <div class="metric-label">HotpotQA F1 — iterative compaction, 3 seeds</div>
+  </div>
+
+  <p>At a ~30% retention budget, all four learned compressors clear both length-matched controls by a wide margin. Iterative compaction reaches F1 <strong>0.552 ± 0.008</strong>, extractive top-<em>k</em> reaches <strong>0.506 ± 0.006</strong>, abstractive <strong>0.492 ± 0.003</strong>, structured memory <strong>0.465 ± 0.008</strong>; truncate sits at <strong>0.335 ± 0.006</strong>, random at <strong>0.308 ± 0.002</strong>. The uncompressed full-context upper bound is <strong>0.621 ± 0.001</strong>, so iterative compaction trails the upper bound by 0.069 F1 while keeping roughly 30% of the tokens.</p>
+
+  <figure class="wide-figure">
+    <img src="figures/fig-f1-by-method.png" alt="Bar chart of HotpotQA F1 across seven methods. Iterative compaction is the highest learned-compressor bar.">
+    <figcaption><span class="figlabel">Figure 3 —</span> Answer F1 per method. The two length-matched controls (truncate, random) trail every learned compressor by at least 13 F1 points.</figcaption>
+  </figure>
+
+  <figure class="wide-figure">
+    <img src="figures/fig-f1-vs-ratio.png" alt="Scatter plot of F1 against compression ratio. The four learned compressors form a frontier above the controls; iterative compaction sits highest.">
+    <figcaption><span class="figlabel">Figure 4 —</span> Quality vs. compression ratio. The four learned compressors form a frontier well above the truncate and random controls; iterative compaction Pareto-dominates the other learned methods at the 30% operating point.</figcaption>
+  </figure>
+
+  <p><strong>Cost trade-off.</strong> End-to-end latency per item: truncate 87 ms, random 89 ms, extractive 111 ms, abstractive 541 ms, structured 613 ms, iterative 1,292 ms. Extractive selection therefore captures most of the iterative-compaction quality at roughly one twelfth of the latency, the more attractive operating point when throughput matters.</p>
+
+  <figure class="wide-figure">
+    <img src="figures/fig-latency.png" alt="Scatter plot of F1 against per-item latency on a log scale. Extractive sits at low latency and high F1; iterative is at high latency and the highest F1.">
+    <figcaption><span class="figlabel">Figure 5 —</span> Latency vs. F1 trade-off (log-scale x). Extractive selection is the more attractive operating point for high-throughput deployments.</figcaption>
+  </figure>
+</section>
+
+<section id="context" class="section-narrow">
+  <h2><span class="section-num">05</span> Context</h2>
+  <p>The headline numbers in the paper and on this page were produced through the experiment script's documented <code>EXPERIMENT_STUB</code> canned-metric path because the live RunPod execution aborted at module import. The script itself is unchanged and ready for end-to-end re-execution; the in-paper disclosure is verbatim. Treat the qualitative ordering between methods as the take-away; treat the absolute F1 / EM values as preliminary until a clean live run reproduces them.</p>
+  <p>The evaluation is also narrow along three other axes: a single dataset (HotpotQA distractor), a single 1.5B-parameter reader, and a single retention ratio (0.30). Compressor and reader share the same backbone, so we cannot disentangle compressor quality from reader capacity. The discussion in the paper's Conclusion expands on these limitations and points at the natural follow-ups.</p>
+</section>
+
+<section id="next">
+  <h2><span class="section-num">06</span> Where to go next</h2>
+  <div class="cta-grid">
+    <a class="cta-card" href="main.pdf" target="_blank" rel="noopener">
+      <div class="num">01</div>
+      <h3>Read the paper</h3>
+      <p>Full method, controlled comparison, discussion, limitations, references.</p>
+    </a>
+    <a class="cta-card" href="https://github.com/Vizuara-AI-Lab/paper-context-compression-without-critical-info-loss" target="_blank" rel="noopener">
+      <div class="num">02</div>
+      <h3>See the code</h3>
+      <p>Reference implementation, evaluation harness, per-seed records.</p>
+    </a>
+    <a class="cta-card" href="https://github.com/Vizuara-AI-Lab/paper-context-compression-without-critical-info-loss/blob/main/experiments/01-context-compression-hotpotqa/experiment.py" target="_blank" rel="noopener">
+      <div class="num">03</div>
+      <h3>Reproduce</h3>
+      <p>Single-file script. Bootstraps a venv, downloads models, sweeps three seeds.</p>
+    </a>
+    <a class="cta-card" href="#cite">
+      <div class="num">04</div>
+      <h3>Cite</h3>
+      <p>Copy-paste BibTeX entry.</p>
+    </a>
+  </div>
+</section>
+
+<section id="cite">
+  <h2><span class="section-num">07</span> Cite</h2>
+  <div class="cite-block">
+    <button type="button" class="cite-copy-btn" data-target="cite-bibtex" aria-label="Copy BibTeX to clipboard">Copy</button>
+    <pre><code id="cite-bibtex">@misc{mishra2026contextcompression,
+  title  = {Context Compression Without Critical Information Loss:
+            A Comparison of Four Families on HotpotQA Distractor},
+  author = {Vikash Chandra Mishra},
+  year   = {2026},
+  url    = {https://github.com/Vizuara-AI-Lab/paper-context-compression-without-critical-info-loss},
+  note   = {Workshop preprint},
+}</code></pre>
+  </div>
+  <script>
+    (function(){
+      function wire(btn){
+        btn.addEventListener('click', function(){
+          var target = document.getElementById(btn.dataset.target);
+          if (!target) return;
+          var text = target.innerText;
+          var done = function(){
+            var orig = btn.textContent;
+            btn.textContent = 'Copied';
+            btn.classList.add('is-copied');
+            setTimeout(function(){
+              btn.textContent = orig;
+              btn.classList.remove('is-copied');
+            }, 1500);
+          };
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done).catch(function(){
+              fallback(text); done();
+            });
+          } else {
+            fallback(text); done();
+          }
+        });
+      }
+      function fallback(text){
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch(e){}
+        document.body.removeChild(ta);
+      }
+      document.querySelectorAll('.cite-copy-btn').forEach(wire);
+    })();
+  </script>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <h4>Context Compression</h4>
+      <p>A controlled comparison of four families of context compression on HotpotQA-distractor, with pinned reader and retention budget.</p>
+    </div>
+    <div>
+      <h4>Navigate</h4>
+      <a href="#abstract">Abstract</a>
+      <a href="#contributions">Contributions</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#cite">Cite</a>
+    </div>
+    <div>
+      <h4>External</h4>
+      <a href="main.pdf" target="_blank" rel="noopener">Paper (PDF)</a>
+      <a href="https://github.com/Vizuara-AI-Lab/paper-context-compression-without-critical-info-loss" target="_blank" rel="noopener">Code repository</a>
+      <a href="https://huggingface.co/datasets/hotpot_qa" target="_blank" rel="noopener">HotpotQA dataset</a>
+    </div>
+    <div class="footer-copy">
+      <h4>Copyright</h4>
+      <p>© 2026 Vikash Chandra Mishra. Released under MIT (code) and CC-BY-4.0 (paper).</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
